@@ -11,11 +11,13 @@ from BeautifulSoup import BeautifulStoneSoup
 import urllib, time, os, curses
 
 ######## CONFIG ########
-DEFAULT_REFRESH_IN = 60
+MAX_UPDATE_DELAY = 60 # the predictions will updated at least this many seconds
+BAUDRATE_THRESHOLD = 10000 # changes the interface for lower performance machines to reduce flickering
 ROWS, COLUMNS = map(int, os.popen('stty size', 'r').read().split()) # get the width of the terminal
 
 ##### SETUP WINDOW #####
 stdscr = curses.initscr()
+baudrate = curses.baudrate()
 
 begin_x = 0 ; begin_y = 0
 height = 3 ; width = COLUMNS
@@ -24,6 +26,10 @@ headscr = curses.newwin(height, width, begin_y, begin_x)
 begin_x = 0 ; begin_y = 3
 height = 20 ; width = COLUMNS
 mainscr = curses.newwin(height, width, begin_y, begin_x)
+
+begin_x = 0 ; begin_y = ROWS - 1
+height = 2 ; width = COLUMNS
+footscr = curses.newwin(height, width, begin_y, begin_x)
 
 curses.start_color()
 curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_GREEN)
@@ -60,12 +66,12 @@ def print_prediction(stop, prediction):
 	'''Print a parsed prediction.'''
 	predictions = parse_prediction(prediction)
 	mainscr.addstr(stop['title'].ljust(COLUMNS), curses.color_pair(1))
-	refresh_in = DEFAULT_REFRESH_IN
+	update_delay = MAX_UPDATE_DELAY
 	if predictions:
 		for prediction in predictions:
-			local_refresh_in = int(prediction['seconds']) - int(prediction['minutes']) * 60
-			if local_refresh_in < refresh_in:
-				refresh_in = local_refresh_in
+			local_update_delay = int(prediction['seconds']) - int(prediction['minutes']) * 60
+			if local_update_delay < update_delay:
+				update_delay = local_update_delay
 			if prediction['minutes'] == "0":
 				mainscr.addstr('Arriving' + ' (' + get_leave_at(stop['time_to_stop'], prediction['minutes']) + ')\n')
 			else:
@@ -73,38 +79,49 @@ def print_prediction(stop, prediction):
 	else:
 		mainscr.addstr('no prediction\n')
 	mainscr.addstr('\n')
-	return refresh_in
+	return update_delay
 
 def print_predictions(stops):
 	'''Print predictionss for each of the stops.'''
 	mainscr.clear()
-	refresh_in = DEFAULT_REFRESH_IN
+	update_delay = MAX_UPDATE_DELAY
 	for stop in stops:
 		prediction = get_prediction(stop['url'])
-		local_refresh_in = print_prediction(stop, prediction)
-		if local_refresh_in < refresh_in:
-			refresh_in = local_refresh_in
-	mainscr.refresh()
-	return refresh_in
+		local_update_delay = print_prediction(stop, prediction)
+		if local_update_delay < update_delay:
+			update_delay = local_update_delay
+	mainscr.noutrefresh()
+	return update_delay
 	
 def nextbus_app(stops):
 	'''Start up the app given a set of stops and print the predictions to the screen.'''
-	refresh_in = 0
+	update_delay = 0
 	while True:
 		try:
-			if refresh_in <= 0:
+			if update_delay <= 0:
 				headscr.clear()
-				headscr.addstr('AC TRANSIT PREDICTIONS'.center(COLUMNS))
-				headscr.addstr(('(refreshing...)').center(COLUMNS))
-				headscr.refresh()
-				refresh_in = print_predictions(stops)
+				headscr.addstr('AC TRANSIT BUS ARRIVALS'.center(COLUMNS))
+				if baudrate < 10000:
+					headscr.addstr(time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime()).center(COLUMNS))
+					footscr.clear()
+					footscr.addstr('[updating...]'.center(COLUMNS))
+					footscr.noutrefresh()
+				else:
+					headscr.addstr(time.strftime("Last Updated: %a, %d %b %Y %H:%M:%S", time.localtime()).center(COLUMNS))
+				headscr.noutrefresh()
+				update_delay = print_predictions(stops)
 			else:
 				time.sleep(1)
-				refresh_in -= 1
-			headscr.clear()
-			headscr.addstr('AC TRANSIT PREDICTIONS'.center(COLUMNS))
-			headscr.addstr(('(refresh in ' + str(refresh_in) + 's)').center(COLUMNS))
-			headscr.refresh()
+				update_delay -= 1
+				if baudrate < 10000:
+					headscr.clear()
+					headscr.addstr('AC TRANSIT BUS ARRIVALS'.center(COLUMNS))
+					headscr.addstr(time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime()).center(COLUMNS))
+					headscr.noutrefresh()
+					footscr.clear()
+					footscr.addstr(('[next update in ' + str(update_delay) + 's]').center(COLUMNS))
+					footscr.noutrefresh()
+			curses.doupdate()
 		except KeyboardInterrupt: # ctrl-c to close the program
 			curses.endwin()
 			exit()
