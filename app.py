@@ -3,15 +3,19 @@ A terminal app to show nextbus arrival times
 By Daniel Levy
 ctrl-c to quit
 
-If we want to use speech, can use pyttsx
-Can use threading too to have a more interactive interface with custom routes, optional voice, etc
+Future:
+-if we want to use speech, can use pyttsx
+-only update individual lines when required instead of updating all lines
+-add in a line manager to manage bookmarked lines (use threading)
+-update_delay at bottom of screen should 
 '''
 
 from BeautifulSoup import BeautifulStoneSoup
 import urllib, time, os, curses
 
 ######## CONFIG ########
-MAX_UPDATE_DELAY = 60 # the predictions will updated at least this many seconds
+MIN_UPDATE_DELAY = 10 # predictions will updated no more often than this many seconds (so we can be nice to nextbus server)
+MAX_UPDATE_DELAY = 60 # predictions will updated at least every this many seconds
 BAUDRATE_THRESHOLD = 10000 # changes the interface for lower performance machines to reduce flickering
 ROWS, COLUMNS = map(int, os.popen('stty size', 'r').read().split()) # get the width of the terminal
 
@@ -101,7 +105,7 @@ def nextbus_app(stops):
             if update_delay <= 0:
                 headscr.clear()
                 headscr.addstr('AC TRANSIT BUS ARRIVALS'.center(COLUMNS))
-                if baudrate < 10000:
+                if baudrate < BAUDRATE_THRESHOLD:
                     headscr.addstr(time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime()).center(COLUMNS))
                     footscr.clear()
                     footscr.addstr('[updating...]'.center(COLUMNS))
@@ -109,11 +113,14 @@ def nextbus_app(stops):
                 else:
                     headscr.addstr(time.strftime("Last Updated: %a, %d %b %Y %H:%M:%S", time.localtime()).center(COLUMNS))
                 headscr.noutrefresh()
+                curses.doupdate()
                 update_delay = print_predictions(stops)
+                if update_delay < MIN_UPDATE_DELAY:
+                    update_delay = MIN_UPDATE_DELAY
             else:
                 time.sleep(1)
                 update_delay -= 1
-                if baudrate < 10000:
+                if baudrate < BAUDRATE_THRESHOLD:
                     headscr.clear()
                     headscr.addstr('AC TRANSIT BUS ARRIVALS'.center(COLUMNS))
                     headscr.addstr(time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime()).center(COLUMNS))
@@ -121,13 +128,13 @@ def nextbus_app(stops):
                     footscr.clear()
                     footscr.addstr(('[next update in ' + str(update_delay) + 's]').center(COLUMNS))
                     footscr.noutrefresh()
-            curses.doupdate()
+                curses.doupdate()
         except KeyboardInterrupt: # ctrl-c to close the program
             curses.endwin()
             exit()
         except:
             curses.endwin()
-            print "The application quit unexpectedly because I am incompentent at programming. Damn Curses!"
+            print "The application quit unexpectedly. Your terminal might be too small or you resized the terminal while Bus Tracker was running."
             exit()
 
 ######### MAIN #########
@@ -163,7 +170,7 @@ def main():
          'url':'http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=actransit&r=58L&d=58L_22_1&s=1007240',
          'time_to_stop':[{'walking':23, 'driving':11}]
         },
-		{
+        {
          'title':'Line 18 at Everett to Montclair',
          'url':'http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=actransit&r=18&d=18_96_0&s=1017480',
          'time_to_stop':[{'walking':11}]
