@@ -1,6 +1,8 @@
 '''
-A terminal app to show nextbus arrival times
-By Daniel Levy
+app.py
+Daniel Levy
+
+A terminal app to show nextbus arrival times.
 ctrl-c to quit
 
 Future:
@@ -10,14 +12,10 @@ Future:
 -update_delay at bottom of screen should 
 '''
 
+######## IMPORTS #######
 from BeautifulSoup import BeautifulStoneSoup
-import urllib, time, os, curses
-
-######## CONFIG ########
-MIN_UPDATE_DELAY = 10 # predictions will updated no more often than this many seconds (so we can be nice to nextbus server)
-MAX_UPDATE_DELAY = 60 # predictions will updated at least every this many seconds
-BAUDRATE_THRESHOLD = 10000 # changes the interface for lower performance machines to reduce flickering
-ROWS, COLUMNS = map(int, os.popen('stty size', 'r').read().split()) # get the width of the terminal
+import urllib, time, curses
+from config import *
 
 ##### SETUP WINDOW #####
 stdscr = curses.initscr()
@@ -36,7 +34,7 @@ height = 2 ; width = COLUMNS
 footscr = curses.newwin(height, width, begin_y, begin_x)
 
 curses.start_color()
-curses.init_pair(1, curses.COLOR_BLACK, curses.COLOR_GREEN)
+curses.init_pair(1, LINE_TITLE_TEXT_COLOR, LINE_TITLE_HIGHLIGHT_COLOR)
 
 ###### FUNCTIONS #######
 def get_prediction(url):
@@ -104,7 +102,7 @@ def nextbus_app(stops):
         try:
             if update_delay <= 0:
                 headscr.clear()
-                headscr.addstr('AC TRANSIT BUS ARRIVALS'.center(COLUMNS))
+                headscr.addstr(TITLE.center(COLUMNS))
                 if baudrate < BAUDRATE_THRESHOLD:
                     headscr.addstr(time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime()).center(COLUMNS))
                     footscr.clear()
@@ -122,7 +120,7 @@ def nextbus_app(stops):
                 update_delay -= 1
                 if baudrate < BAUDRATE_THRESHOLD:
                     headscr.clear()
-                    headscr.addstr('AC TRANSIT BUS ARRIVALS'.center(COLUMNS))
+                    headscr.addstr(TITLE.center(COLUMNS))
                     headscr.addstr(time.strftime("%a, %d %b %Y %H:%M:%S", time.localtime()).center(COLUMNS))
                     headscr.noutrefresh()
                     footscr.clear()
@@ -139,44 +137,7 @@ def nextbus_app(stops):
 
 ######### MAIN #########
 def main():
-    stops = [
-        {
-         'title':'Line 18 at Everett to Downtown Oakland',
-         'url':'http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=actransit&r=18&d=18_90_1&s=1017490',
-         'time_to_stop':[{'walking':11}]
-        },
-        {
-         'title':'Line V at Everett to San Francisco',
-         'url':'http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=actransit&r=V&d=V_57_1&s=1017490',
-         'time_to_stop':[{'walking':11}]
-        },
-        {
-         'title':'Line NX at Park Blvd to San Francisco',
-         'url':'http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=actransit&r=NX&d=NX_36_1&s=1007240',
-         'time_to_stop':[{'walking':23, 'driving':11}]
-        },
-        {
-         'title':'Line NL at Park Blvd to San Francisco',
-         'url':'http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=actransit&r=NL&d=NL_146_1&s=1007240',
-         'time_to_stop':[{'walking':23, 'driving':11}]
-        },
-        {
-         'title':'Line 57 at Park Blvd to Emeryville',
-         'url':'http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=actransit&r=57&d=57_197_1&s=1007240',
-         'time_to_stop':[{'walking':23, 'driving':11}]
-        },
-        {
-         'title':'Line 58L at Park Blvd to Downtown Oakland',
-         'url':'http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=actransit&r=58L&d=58L_22_1&s=1007240',
-         'time_to_stop':[{'walking':23, 'driving':11}]
-        },
-        {
-         'title':'Line 18 at Everett to Montclair',
-         'url':'http://webservices.nextbus.com/service/publicXMLFeed?command=predictions&a=actransit&r=18&d=18_96_0&s=1017480',
-         'time_to_stop':[{'walking':11}]
-        },
-    ]
-    nextbus_app(stops)
+    nextbus_app(STOPS)
 
 if __name__ == "__main__":
     main()
