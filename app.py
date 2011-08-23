@@ -9,7 +9,9 @@ Future:
 -if we want to use speech, can use pyttsx
 -only update individual lines when required instead of updating all lines
 -add in a line manager to manage bookmarked lines (use threading)
--update_delay at bottom of screen should 
+-show time to leave in addition to minutes until you need to leave
+-calculate arrival time at a specific destination
+-link to bart arrival times
 '''
 
 ######## IMPORTS #######
